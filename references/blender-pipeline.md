@@ -56,6 +56,28 @@ bpy.ops.export_scene.gltf(filepath="out.glb", export_format="GLB",
 - **Animation**: glTF animates node transforms, morph weights and skin, NOT material/texture values. For a per-frame texture change, bake separate textures and swap in the viewer. The Blender exporter often writes one glTF clip per object Action; `<model-viewer>` plays only one clip, so either merge clips post-export or drive multi-node animation in the web layer.
 - **API drift**: `mesh.use_auto_smooth` was removed in 4.x; the Action `fcurves` API changed with slotted actions in 4.4/5.x. Set new-keyframe interpolation via `bpy.context.preferences.edit.keyframe_new_interpolation_type` instead of poking fcurves.
 
-## Generating textures programmatically
+## Batch export, compression, and LOD (web delivery)
+
+Run Blender headless over a folder and export each file, with Draco compression baked in:
+
+```python
+# blender --background --python batch_export.py -- /src /out
+import bpy, os, sys
+argv = sys.argv[sys.argv.index("--")+1:] if "--" in sys.argv else []
+src, out = argv[0], (argv[1] if len(argv) > 1 else argv[0] + "_glb")
+os.makedirs(out, exist_ok=True)
+for f in (x for x in os.listdir(src) if x.endswith(".blend")):
+    bpy.ops.wm.open_mainfile(filepath=os.path.join(src, f))
+    bpy.ops.export_scene.gltf(
+        filepath=os.path.join(out, f[:-6] + ".glb"), export_format="GLB",
+        export_draco_mesh_compression_enable=True,      # Draco geometry compression
+        export_draco_mesh_compression_level=6,          # 0-10, 6 is a good default
+        export_draco_position_quantization=14,          # 8-14 bits
+        export_draco_normal_quantization=10,
+        export_draco_texcoord_quantization=12)
+```
+
+- **LOD / poly reduction:** add a Decimate modifier and apply it before export: `m = obj.modifiers.new("dec","DECIMATE"); m.ratio = 0.3` (30% of polys), `m.use_collapse_triangulate = True`. Export a few ratios for discrete LODs.
+- **Draco is for STATIC geometry; use Meshopt for animated/morph models** (Draco drops those) — Meshopt is applied post-export with the `gltf-transform` CLI (also does KTX2/Basis texture compression, WebP, resize, dedup, prune). Decoders for Draco/KTX2/Meshopt must be wired on the web loader (see realtime-3d-web.md).
 
 Use Pillow to draw silkscreen, dot-matrix faces, labels, decals as PNGs, then load them as image textures (Base Color / Emission). This is fast, controllable, and exports cleanly. For an emissive glow look, draw the lit shape and screen-composite a Gaussian-blurred copy over it.

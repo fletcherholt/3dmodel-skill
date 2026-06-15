@@ -54,6 +54,21 @@ To make a viewer feel like a company presenting to Apple, the jump is post-proce
 
 **Verify the canvas fills the real window**, not just your test viewport. A WebGL canvas sized to `innerWidth/innerHeight` is correct, but a headless/automation viewport pinned smaller than the actual browser window shows dark margins on the right and bottom that look like a layout bug and are not. Confirm `renderer.setSize` runs on load and on `resize`, then check at the true window size.
 
+## Ship it light (optimise for delivery)
+
+Premium is worthless if it stutters; budget every asset and frame (detail in `references/realtime-3d-web.md`):
+- **Compress geometry:** Draco for static, **Meshopt for animated/morph** (Draco drops those). Bake at Blender export or post-process with the `gltf-transform` CLI; wire the matching decoders on the web loader or the GLB won't load.
+- **Compress textures:** KTX2/Basis (GPU-native), resize to what's actually visible.
+- **LOD:** export decimated variants and swap by distance, or stream progressively.
+- **Draw calls:** `InstancedMesh` for repeats, merge static meshes sharing a material, reuse geometry/materials.
+- **Lazy + progress:** load big assets on intent, show a `LoadingManager` progress bar, reveal when ready; dispose removed resources.
+- **Frame loop:** cap pixel ratio at 2, pause rendering off-screen, cut post-processing first when the rate drops.
+Aim for a smooth 60fps on a normal laptop before adding polish.
+
+## Scroll-driven and multi-library scenes (narrative pages)
+
+For Apple-style story pages, separate concerns into layers: a 3D layer (Three.js scene + render loop), an animation layer (scroll/timeline driving 3D properties), and a UI layer (HTML/React overlays). Link camera position, model rotation, or a baked clip's `currentTime` to scroll progress (a plain scroll handler, or GSAP ScrollTrigger / Theatre.js for orchestration). Every motion has a job (reveal, direct, reinforce); ease everything; pin sections during a beat; keep heavy graphical motion sparing and lazy-loaded. When a full WebGL scene is overkill, lightweight depth (CSS 3D transforms, tilt, `<model-viewer>`) is enough.
+
 ## Interactive viewer UI patterns
 
 - **Orbit + zoom**: `OrbitControls` with damping. Constrain min/max distance and polar angle so users cannot lose the object.

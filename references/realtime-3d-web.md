@@ -214,6 +214,35 @@ controls.autoRotateSpeed = 0.5;
 ```
 Add a CSS radial-gradient vignette div over the canvas for cinematic framing, and fade the UI chrome up ~1s after load.
 
+## Loading compressed assets + progress (Draco / KTX2 / Meshopt)
+
+A compressed GLB will NOT load unless you wire the decoders. Use `LoadingManager` for free progress (don't hand-roll a loader unless you need a custom overlay).
+
+```js
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+const manager = new THREE.LoadingManager();
+manager.onProgress = (url, n, total) => setBar(n / total);   // real progress bar
+manager.onLoad = () => revealScene();
+
+const draco = new DRACOLoader().setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+const ktx2  = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/libs/basis/').detectSupport(renderer);
+const loader = new GLTFLoader(manager).setDRACOLoader(draco).setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
+loader.load('model.glb', (g) => scene.add(g.scene));
+```
+The Draco decoder is >100KB, so Draco only pays off when the geometry saving beats the decoder cost. Lazy-load big assets (set `loader.load` only on intent), or stream with Needle gltf-progressive.
+
+## Performance: instancing, draw calls, disposal (keep it smooth)
+
+- **Many copies of one mesh → `InstancedMesh`** (one draw call for thousands): `const m=new THREE.InstancedMesh(geo,mat,N); m.setMatrixAt(i,matrix); m.instanceMatrix.needsUpdate=true;`. Per-instance colour via `setColorAt`.
+- **Cut draw calls:** merge static meshes that share a material (`BufferGeometryUtils.mergeGeometries`), reuse geometry/material instances, keep material count low.
+- **Frame budget:** cap `setPixelRatio(Math.min(devicePixelRatio,2))`; pause the render loop when the tab/section is hidden (`IntersectionObserver` / `visibilitychange`); only run the loop while something animates.
+- **Dispose** what you remove (`geometry.dispose()`, `material.dispose()`, `texture.dispose()`, `renderer.renderLists.dispose()`) or memory leaks on scene swaps.
+- **Shadows are expensive:** one shadow-casting light, a tight `shadow.camera` frustum, modest `mapSize`. Post-processing (GTAO/bloom) is the first thing to cut if frame rate drops.
+
 ## Verifying with a headless browser
 
 Serve the folder (`python3 -m http.server`), drive it with Playwright: navigate, wait, screenshot, exercise each state (closed, mid-transition, open, dragging) and Read each screenshot. Most 3D bugs only show in transitions.
