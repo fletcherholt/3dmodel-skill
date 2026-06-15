@@ -166,6 +166,52 @@ dom.addEventListener('pointerup', e => {
 
 glTF cannot animate textures. Either generate N emissive textures and toggle which mesh/plane is visible on a JS timer, or build a real LED matrix as an `InstancedMesh` of dots plus an additive-blended glow `InstancedMesh`, and set per-instance colour/scale to draw glyphs.
 
+## Keynote-grade pipeline: cinematic stage + post-processing
+
+```js
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+
+// studio stage: gradient backdrop, glossy floor, softbox lights
+const bg = document.createElement('canvas'); bg.width=16; bg.height=512;
+{ const g=bg.getContext('2d'); const grd=g.createLinearGradient(0,0,0,512);
+  grd.addColorStop(0,'#181b21'); grd.addColorStop(0.5,'#0e1014'); grd.addColorStop(1,'#08090b');
+  g.fillStyle=grd; g.fillRect(0,0,16,512); }
+const bt=new THREE.CanvasTexture(bg); bt.colorSpace=THREE.SRGBColorSpace; scene.background=bt;
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(120,80),
+  new THREE.MeshStandardMaterial({ color:0x0a0b0d, roughness:0.38, metalness:0.0 }));
+floor.rotation.x = -Math.PI/2; floor.position.y = -1.06; floor.receiveShadow = true; scene.add(floor);
+
+RectAreaLightUniformsLib.init();
+const s1 = new THREE.RectAreaLight(0xffffff, 3.4, 11, 6); s1.position.set(-5,6,8); s1.lookAt(0,0,0); scene.add(s1);
+const s2 = new THREE.RectAreaLight(0xbcd2ff, 2.2, 8, 5); s2.position.set(7,3,4); s2.lookAt(0,0,0); scene.add(s2);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const gtao = new GTAOPass(scene, camera, innerWidth, innerHeight);
+gtao.updateGtaoMaterial({ radius:0.5, distanceExponent:1.0, thickness:1.0, scale:1.0, samples:16 });
+composer.addPass(gtao);
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.42, 0.5, 0.82));
+composer.addPass(new OutputPass());
+composer.addPass(new SMAAPass(innerWidth*renderer.getPixelRatio(), innerHeight*renderer.getPixelRatio()));
+// render loop: composer.render();  resize: composer.setSize(innerWidth, innerHeight);
+```
+
+Idle auto-rotate that pauses on user input (track input time, not camera movement, or it fights itself):
+```js
+let lastInput = -9999; const bump = () => lastInput = performance.now();
+for (const ev of ['pointerdown','pointermove','wheel']) dom.addEventListener(ev, bump, {passive:true});
+controls.autoRotateSpeed = 0.5;
+// per frame: controls.autoRotate = resting && (performance.now() - lastInput > 2600);
+```
+Add a CSS radial-gradient vignette div over the canvas for cinematic framing, and fade the UI chrome up ~1s after load.
+
 ## Verifying with a headless browser
 
 Serve the folder (`python3 -m http.server`), drive it with Playwright: navigate, wait, screenshot, exercise each state (closed, mid-transition, open, dragging) and Read each screenshot. Most 3D bugs only show in transitions.

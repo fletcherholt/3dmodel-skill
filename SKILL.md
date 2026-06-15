@@ -36,6 +36,17 @@ Biggest wins, roughly in order:
 - **Texture detail beats geometry detail** at distance: bake silkscreen/labels/trace patterns into a canvas texture rather than modelling every part. Procedural shader nodes do NOT survive glTF export, so bake to image textures if exporting.
 - Optional postprocessing (`EffectComposer`): subtle bloom on emissive parts, SSAO/N8AO for contact occlusion. Add only if needed; it adds dependencies and breakage risk.
 
+## Premium / keynote-grade presentation
+
+To make a viewer feel like a company presenting to Apple, the jump is post-processing plus a real studio stage plus restrained motion. Concretely:
+
+- **Post-processing pipeline** (`EffectComposer`, all from `three/addons/postprocessing/`): `RenderPass` then `GTAOPass` (ground-truth ambient occlusion, built in, no extra dependency, gives grounded contact darkening in crevices) then a SUBTLE `UnrealBloomPass` (strength ~0.4, radius ~0.5, threshold ~0.85 so only bright emissive/speculars bloom) then `OutputPass` (tone mapping + colour space at the end) then `SMAAPass` (MSAA does not work with AO, so anti-alias here). Swap `renderer.render()` for `composer.render()` and call `composer.setSize()` on resize.
+- **Studio stage**: a deep, subtle vertical-gradient background (not flat white/paper); a dark low-roughness floor that receives real shadows and softly reflects the environment, which reads as the product floating on glass; and **RectAreaLight softboxes** (`RectAreaLightUniformsLib.init()` first) for the crisp, expensive-looking speculars on plastic and glass. Keep one shadow-casting directional light.
+- **A CSS radial vignette** over the canvas (cheap, no shader) frames the shot cinematically.
+- **Considered motion** (Apple's rule: every motion has a job): a very slow idle auto-rotate that only runs in the resting hero state and pauses the moment the user touches it (track last input time, not camera movement, or auto-rotate fights itself); a one-second intro that fades the UI chrome up after load; smooth eased state transitions. Nothing moves just to move.
+- **Restrained UI**: dark theme, generous whitespace, a small uppercase kicker over a larger sans-serif title, monospace for technical labels, frosted-glass callout cards. Let the product hold the frame.
+- Emissive materials with `toneMapped:false` get tonemapped anyway once `OutputPass` runs, but stay bright enough to bloom; tune bloom threshold rather than fighting it.
+
 ## Interactive viewer UI patterns
 
 - **Orbit + zoom**: `OrbitControls` with damping. Constrain min/max distance and polar angle so users cannot lose the object.
