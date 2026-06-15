@@ -2,6 +2,14 @@
 
 Use Blender from the command line so the whole loop is scriptable: write a Python script, render a PNG, Read it, iterate. No GUI needed.
 
+## Going pro: the standard pipeline, API surface, and key facts (verified against Blender docs)
+
+- **The professional pipeline** (codified by Blender Studio's official Fundamentals course): model → texture → shade → rig → animate → light → render + composite to an image sequence. Character animation is taught "by example" from a bouncing ball up to full acting. That order is the learning path too.
+- **Two render engines:** EEVEE is the real-time rasterizer (fast, interactive, renders PBR, good for drafts and even finals); Cycles is the path tracer (GPU rendering, render baking, Open Shading Language) for physically-accurate hero shots. They share the same shader nodes, so EEVEE is a live preview of Cycles materials. (Drafts in EEVEE, hero in Cycles.)
+- **UV unwrap** (`Unwrap` operator cuts along seams, flattens, overwrites existing UVs) offers three methods: Angle-Based (ABF), Conformal (LSCM, better on simple objects), Minimum Stretch (SLIM, minimises area + angle distortion, added in 4.3).
+- **glTF export** carries meshes, Principled-BSDF + Unlit materials, textures, cameras, punctual lights, extensions, custom properties, and animation (keyframe/shape-key/skinning); materials are metal/rough PBR (Base Color, Metallic, Roughness, baked AO, +Y tangent normal, Emissive). FBX/OBJ/STL are separate exporters.
+- **The `bpy` API surface:** an embedded Python interpreter exposes `bpy.context` (current state), `bpy.data` (the .blend datablocks), `bpy.ops` (operators), `bpy.types`, `bpy.props`, `bpy.utils`, `bpy.app`, `bpy.path`, `bpy.msgbus`, plus standalone modules `bmesh` (mesh editing/retopo automation), `mathutils` (vectors/matrices/quaternions), `gpu` (drawing), `blf` (fonts), `aud` (audio). Almost everything (animation, rendering, import/export, object creation, repetitive tasks) is scriptable; prefer `bpy.data`/`bmesh` over `bpy.ops` for reliability in headless scripts.
+
 ## Setup
 
 - Install: `brew install --cask blender` (macOS) gives a `blender` CLI. Python 3 with `Pillow`/`numpy` is handy for generating textures.

@@ -1,6 +1,6 @@
 ---
 name: 3dmodel
-description: Create 3D models and interactive 3D viewers from a coding agent. Use when asked to model an object/product/part in 3D, recreate something in 3D, build a web 3D viewer or product display, make an exploded or x-ray/cutaway view, export a GLB, or improve how a real-time 3D scene looks. Covers the closed-loop method (generate, render, look, critique, iterate), Blender headless modelling, Three.js web delivery, realism, and interactive-viewer UI patterns.
+description: Create 3D models and interactive 3D viewers from a coding agent. Use when asked to model an object/product/part in 3D, recreate something in 3D, design a precise/manufacturable/parametric part (CAD), build a web 3D viewer or product display, make an exploded or x-ray/cutaway view, export a GLB/STEP/STL, or improve how a real-time 3D scene looks. Covers the closed-loop method (generate, render, look, critique, iterate), Blender headless mesh modelling, Fusion 360 parametric CAD and its Python API (driven via an MCP bridge), Three.js web delivery, realism, sourcing real existing CAD models, and interactive-viewer UI patterns.
 ---
 
 # 3D modelling and interactive 3D viewers
@@ -11,7 +11,10 @@ You cannot "see" a 3D scene by intuition. The only way to model well is a **clos
 
 - **Blender headless GLB** when the user wants an asset (a `.glb`/`.gltf` to reuse, hand off, or drop into a game/AR/another app), or photoreal stills. See `references/blender-pipeline.md`.
 - **Procedural Three.js** when the user wants an interactive web viewer (orbit, animate, click, exploded/x-ray, configurator). You build geometry in JS, so you control everything and avoid export limits. See `references/realtime-3d-web.md`.
-- **Hybrid**: model detailed parts in Blender, export GLB, load it in a Three.js viewer for interaction.
+- **Fusion 360 (parametric CAD)** when the thing must be precise, dimensioned, manufacturable or engineered — a real product part, an enclosure with exact tolerances, anything heading to CNC/3D-print/sheet-metal, or assemblies with moving joints. Fusion is history-based parametric; Blender is mesh. See `references/fusion360.md`. Export STEP/IGES for engineering, STL/OBJ to bridge into Blender for render.
+- **Hybrid**: model detailed parts in Blender, export GLB, load it in a Three.js viewer for interaction. Or: engineer the part in Fusion (STEP) → import to Blender for look-dev/render → glTF to the web.
+
+**Blender vs Fusion 360, the clean split** (verified against Autodesk + Blender docs): Fusion for precise parametric/manufacturable engineering (sketches→constraints→features→assemblies, CAD/CAM, sheet metal, generative design, simulation); Blender for organic/mesh modelling, sculpting, look-dev, animation and rendering. The interop bridge is STEP/IGES (CAD) and STL/OBJ/FBX/glTF (mesh). A common pro pipeline: design in Fusion, render in Blender.
 
 If the user wants a model on a website that is coloured, animated and user-movable, the simplest path is Google `<model-viewer>` (one HTML tag: `camera-controls`, `autoplay`, `ar`); the powerful path is Three.js / React-Three-Fiber. model-viewer plays only ONE animation clip at a time and is awkward to script, so for multi-part animation or click-to-reveal use Three.js directly.
 
@@ -62,6 +65,24 @@ To make a viewer feel like a company presenting to Apple, the jump is post-proce
 - **Hide the overlay while moving**: lines anchored to 3D points swing and look glitchy during a drag. Track whether the camera moved this frame; if it did (or inertia is still settling), fade the whole label/line overlay out, and fade it back in only once the view is still for ~200ms. Also hide any label/line whose part is behind the camera (projected z >= 1).
 - **Click vs drag**: a tap (pointer moved < ~6px and < ~320ms) is a click action (e.g. toggle x-ray); anything longer is a drag/rotate. Distinguish on `pointerup`.
 - **Match the user's design language** for the surrounding UI; keep chrome minimal and let the object lead.
+
+## Parametric CAD with Fusion 360
+
+When the job is a precise/manufacturable part, work parametrically, not as a mesh. Full detail + code in `references/fusion360.md`; the essentials:
+
+- **Workflow:** 2D **sketch** → **constrain it fully** (geometric constraints + dimensions; under-constrained geometry is blue, fully-constrained is black) → **features** (extrude/revolve/loft/sweep/fillet/shell/pattern) that record in the **timeline** and auto-update on change → organise as **components** (not bodies — joints need components) → **joints** for motion, **user parameters** for every key dimension so one number drives the model.
+- **Design for change:** minimise dependencies, name parameters meaningfully (`wall`, not `D1`), drive shared dims from one parameter, debug via the timeline's error markers.
+- **Python API** (`adsk.core`/`adsk.fusion`): `app=Application.get()`, `design=adsk.fusion.Design.cast(app.activeProduct)`, `root=design.rootComponent`. **Units gotcha: internal units are centimetres and radians** — `ValueInput.createByReal(5)` is 5 cm; use `createByString("5 mm")` for real units. Feature pattern: `inp=extrudes.createInput(profile, op); inp.setDistanceExtent(False, dist); extrudes.add(inp)`. Export via `design.exportManager` (STEP/STL/IGES/F3D). **No true headless mode** — scripts run inside the running GUI.
+- **Drive Fusion like Blender-MCP:** community MCP servers bridge Claude to a running Fusion via an add-in. The best for a coding agent is **`ndoo/fusion360-mcp-bridge`** (`fusion_execute` to run any Fusion API Python + `fusion_screenshot` for the viewport) — that gives the same generate→run→screenshot→critique loop as Blender. Requires Fusion installed + open. Wire it up like blender-mcp: install the add-in, `claude mcp add`, restart.
+- Pro breadth to know exists: CAM/manufacturing (Manufacture workspace, toolpaths, `adsk.cam.generateAllToolpaths` async), sheet metal (flanges → flat patterns for laser/waterjet), generative design (goal-driven, ranked, manufacturing-method-aware), simulation, and Configurations for variants.
+
+## Use a real existing model when it must match reality
+
+Before modelling a real-world part from scratch, **look for the actual CAD/3D model first** (this is what makes "looks like real life" achievable, and what the LED-panel and component searches proved). Sources:
+- **Fusion built-in:** Insert → Insert McMaster-Carr Component (real STEP by part number) and Insert Manufacturer Part; the **SnapEDA** Fusion app for PCB parts.
+- **Libraries:** McMaster-Carr (free STEP for most parts), GrabCAD (millions of files), 3D ContentCentral, TraceParts, Digi-Key/SnapEDA for electronics, manufacturer STEP downloads.
+- **For the web:** Sketchfab/poly.pizza for GLBs (mostly auth-gated or low-poly). If no usable download exists, recreate from reference images with textured PBR — never flat boxes.
+Always verify a candidate link is live (they rot fast); prefer a search-results page over a specific listing URL when handing links to a user.
 
 ## Pitfalls that waste time (check these first when something looks wrong)
 
