@@ -1,11 +1,13 @@
 ---
 name: 3dmodel
-description: Create 3D models and interactive 3D viewers from a coding agent. Use when asked to model an object/product/part in 3D, recreate something in 3D, design a precise/manufacturable/parametric part (CAD), build a web 3D viewer or product display, make an exploded or x-ray/cutaway view, export a GLB/STEP/STL, or improve how a real-time 3D scene looks. Covers the closed-loop method (generate, render, look, critique, iterate), Blender headless mesh modelling, Fusion 360 parametric CAD and its Python API (driven via an MCP bridge), Three.js web delivery, realism, sourcing real existing CAD models, and interactive-viewer UI patterns.
+description: Create 3D models and interactive 3D viewers from a coding agent. Use when asked to model/generate an object/product/part/character in 3D, recreate something in 3D, design a precise/manufacturable/parametric part (CAD), build a web 3D viewer or product display, make an exploded or x-ray/cutaway view, export a GLB/STEP/STL, or improve how a real-time 3D scene looks. Covers the fast AI-generation lane (text/image-to-3D with Tripo/Meshy/Rodin/TRELLIS/Hunyuan3D, then refine), the closed-loop method (generate, render, look, critique, iterate), Blender headless mesh modelling, Fusion 360 parametric CAD and its Python API (driven via an MCP bridge), Three.js web delivery, realism + delivery optimisation, sourcing real existing CAD models, photogrammetry/Gaussian-splat capture, and interactive-viewer UI patterns.
 ---
 
 # 3D modelling and interactive 3D viewers
 
-You cannot "see" a 3D scene by intuition. The only way to model well is a **closed feedback loop**: generate geometry, render it to a PNG (or screenshot the live viewer), **Read the image**, critique it like a picky art director, fix the worst defect, repeat. Never ship 3D you have not looked at. One defect per pass; re-render after each.
+You cannot "see" a 3D scene by intuition. The only way to model well is a **closed feedback loop**: generate geometry, render it to a PNG (or screenshot the live viewer), **Read the image**, critique it like a picky art director, fix the worst defect, repeat. Never ship 3D you have not looked at. One defect per pass; re-render after each. This loop is the edge — it beats one-shotting blind regardless of how strong the underlying model is.
+
+**Default to generating, not hand-modelling, for anything organic or one-off.** The fastest, highest-quality path for props, characters, creatures and "a model of X" is to generate a base mesh in seconds with a text/image-to-3D model, then refine it. Hand-modelling is for surgical edits and for precise CAD. See `references/ai-generation.md` and the section below.
 
 ## Decide the delivery target first
 
@@ -17,6 +19,22 @@ You cannot "see" a 3D scene by intuition. The only way to model well is a **clos
 **Blender vs Fusion 360, the clean split** (verified against Autodesk + Blender docs): Fusion for precise parametric/manufacturable engineering (sketches→constraints→features→assemblies, CAD/CAM, sheet metal, generative design, simulation); Blender for organic/mesh modelling, sculpting, look-dev, animation and rendering. The interop bridge is STEP/IGES (CAD) and STL/OBJ/FBX/glTF (mesh). A common pro pipeline: design in Fusion, render in Blender.
 
 If the user wants a model on a website that is coloured, animated and user-movable, the simplest path is Google `<model-viewer>` (one HTML tag: `camera-controls`, `autoplay`, `ar`); the powerful path is Three.js / React-Three-Fiber. model-viewer plays only ONE animation clip at a time and is awkward to script, so for multi-part animation or click-to-reveal use Three.js directly.
+
+## Generate the base, then refine (the fast lane)
+
+This is what powerful 3D systems actually do, and it is both faster and better than hand-modelling organic shapes. Full detail in `references/ai-generation.md`.
+
+1. **Generate** a base mesh from a text prompt or reference image (these output GLB in seconds via REST APIs you can call end to end):
+   - **Tripo** — fastest (~20-30s) and cheapest; default for speed and best-of-N exploration.
+   - **Meshy** — strong print-readiness, separate texture-refine step.
+   - **Rodin / Hyper3D** — highest fidelity, slower/premium; for a hero asset.
+   - **Self-host, free, offline:** TRELLIS-2 (Microsoft, runs ~6GB VRAM) or Hunyuan3D-2.1 (Tencent, production PBR). Best when there is no per-asset budget.
+   - Image-to-3D beats text when you have a reference image; fire one prompt at several engines and **pick best-of-N**.
+2. **Close the loop on the generation itself:** render/Read the result; if it's wrong, re-prompt or feed a cleaner reference image, don't accept the first output.
+3. **Refine** in Blender: import GLB, fix scale, retopologise if it must deform (or just decimate for a static prop), UV unwrap, **bake** the generated detail (normal/AO/colour) onto clean topology, re-shade, then optimise + export through the normal pipeline.
+4. **Real-world objects:** photogrammetry (COLMAP/RealityCapture → editable mesh) or Gaussian splatting (photoreal capture; convert to mesh if you need geometry).
+
+Do NOT generate for precise/manufacturable parts — those go to Fusion 360 (parametric CAD). And always check whether a real model already exists to download first.
 
 ## The loop, concretely
 
