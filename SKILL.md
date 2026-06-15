@@ -47,6 +47,10 @@ To make a viewer feel like a company presenting to Apple, the jump is post-proce
 - **Restrained UI**: dark theme, generous whitespace, a small uppercase kicker over a larger sans-serif title, monospace for technical labels, frosted-glass callout cards. Let the product hold the frame.
 - Emissive materials with `toneMapped:false` get tonemapped anyway once `OutputPass` runs, but stay bright enough to bloom; tune bloom threshold rather than fighting it.
 
+**Premium has a cost ceiling, respect it.** Post-processing (especially GTAO/SSAO, and to a lesser extent bloom + SMAA) is the most likely thing to make a scene "run like shit" on a normal laptop. Add effects one at a time, watch the frame rate, and be ready to cut them. A clean dark stage with soft shadow maps, environment reflections, an emissive additive-glow for any LEDs, and restrained motion already reads premium with near-zero overhead, no composer required. RectAreaLights are gorgeous for speculars but blow out a glossy floor into a white blob at some angles, use a matte floor (high roughness) or keep area-light intensity low. When in doubt, premium-but-fast beats fancy-but-janky.
+
+**Verify the canvas fills the real window**, not just your test viewport. A WebGL canvas sized to `innerWidth/innerHeight` is correct, but a headless/automation viewport pinned smaller than the actual browser window shows dark margins on the right and bottom that look like a layout bug and are not. Confirm `renderer.setSize` runs on load and on `resize`, then check at the true window size.
+
 ## Interactive viewer UI patterns
 
 - **Orbit + zoom**: `OrbitControls` with damping. Constrain min/max distance and polar angle so users cannot lose the object.

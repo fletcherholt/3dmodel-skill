@@ -134,7 +134,9 @@ for (const f of FLOWS){ const A=PARTS[f.a], B=PARTS[f.b], ok = A._front && B._fr
   f.lbl.setAttribute('x',(A._x+B._x)/2); f.lbl.setAttribute('y',(A._y+B._y)/2-5);
 }
 ```
-Add a small legend mapping colours to categories (power / data / signal). Give SVG `<text>` a paper-coloured stroke with `paint-order:stroke` so it stays legible over busy geometry.
+Add a small legend mapping colours to categories (power / data / signal). Give SVG `<text>` a background-coloured stroke with `paint-order:stroke` so it stays legible over busy geometry.
+
+Keep the two line types visually distinct or they blur together: draw **leader lines** thin, faint and dashed (they are just label-to-part pointers), and draw **flow lines** bold and solid with a dark casing line underneath for contrast against busy/coloured geometry, plus **animated marching dashes** (decrement `stroke-dashoffset` each frame) so they read as flow and show direction. Different categories get different hues; leaders stay neutral.
 
 ## Hide the overlay while moving (the anti-glitch rule)
 
