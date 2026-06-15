@@ -1,4 +1,6 @@
-# Fusion 360 (Autodesk Fusion): parametric CAD, its Python API, and driving it from an agent
+# Autodesk Fusion (formerly Fusion 360): parametric CAD, its Python API, and driving it from an agent
+
+Note on the name: Autodesk rebranded "Fusion 360" to **"Autodesk Fusion"**. It is the same application with the same Python API (`adsk.core`, `adsk.fusion`, `adsk.cam`) and the same workflow; only the brand changed. Docs, community guides, and the MCP bridges still mostly say "fusion360", so treat the two names as interchangeable.
 
 Fusion is a history-based parametric modeller for precise, manufacturable parts (the opposite end from Blender's mesh/organic/render). Use it for engineered parts, enclosures with tolerances, anything for CNC/3D-print/sheet-metal, and assemblies with real joints. Verified against Autodesk and Blender primary docs plus the Fusion API reference.
 

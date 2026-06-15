@@ -1,6 +1,6 @@
 ---
 name: 3dmodel
-description: Create 3D models and interactive 3D viewers from a coding agent. Use when asked to model/generate an object/product/part/character in 3D, recreate something in 3D, design a precise/manufacturable/parametric part (CAD), build a web 3D viewer or product display, make an exploded or x-ray/cutaway view, export a GLB/STEP/STL, or improve how a real-time 3D scene looks. Covers the fast AI-generation lane (text/image-to-3D with Tripo/Meshy/Rodin/TRELLIS/Hunyuan3D, then refine), the closed-loop method (generate, render, look, critique, iterate), Blender headless mesh modelling, Fusion 360 parametric CAD and its Python API (driven via an MCP bridge), Three.js web delivery, realism + delivery optimisation, sourcing real existing CAD models, photogrammetry/Gaussian-splat capture, and interactive-viewer UI patterns.
+description: Create 3D models and interactive 3D viewers from a coding agent. Use when asked to model/generate an object/product/part/character in 3D, recreate something in 3D, design a precise/manufacturable/parametric part (CAD), build a web 3D viewer or product display, make an exploded or x-ray/cutaway view, export a GLB/STEP/STL, or improve how a real-time 3D scene looks. Covers the fast AI-generation lane (text/image-to-3D with Tripo/Meshy/Rodin/TRELLIS/Hunyuan3D, then refine), the closed-loop method (generate, render, look, critique, iterate), Blender headless mesh modelling, Autodesk Fusion (formerly Fusion 360) parametric CAD and its Python API (driven via an MCP bridge), Three.js web delivery, realism + delivery optimisation, sourcing real existing CAD models, photogrammetry/Gaussian-splat capture, and interactive-viewer UI patterns.
 ---
 
 # 3D modelling and interactive 3D viewers
@@ -99,9 +99,9 @@ For Apple-style story pages, separate concerns into layers: a 3D layer (Three.js
 - **Click vs drag**: a tap (pointer moved < ~6px and < ~320ms) is a click action (e.g. toggle x-ray); anything longer is a drag/rotate. Distinguish on `pointerup`.
 - **Match the user's design language** for the surrounding UI; keep chrome minimal and let the object lead.
 
-## Parametric CAD with Fusion 360
+## Parametric CAD with Autodesk Fusion (formerly Fusion 360)
 
-When the job is a precise/manufacturable part, work parametrically, not as a mesh. Full detail + code in `references/fusion360.md`; the essentials:
+Autodesk renamed "Fusion 360" to just "Autodesk Fusion" — same application, same `adsk.core`/`adsk.fusion` Python API, same workflow; only the brand name changed (community/tooling, including the MCP bridges, still say "fusion360"). When the job is a precise/manufacturable part, work parametrically, not as a mesh. Full detail + code in `references/fusion360.md`; the essentials:
 
 - **Workflow:** 2D **sketch** → **constrain it fully** (geometric constraints + dimensions; under-constrained geometry is blue, fully-constrained is black) → **features** (extrude/revolve/loft/sweep/fillet/shell/pattern) that record in the **timeline** and auto-update on change → organise as **components** (not bodies — joints need components) → **joints** for motion, **user parameters** for every key dimension so one number drives the model.
 - **Design for change:** minimise dependencies, name parameters meaningfully (`wall`, not `D1`), drive shared dims from one parameter, debug via the timeline's error markers.
