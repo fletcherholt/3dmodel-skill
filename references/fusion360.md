@@ -53,6 +53,19 @@ def run(context):
 - **Configurations** manage many variants from one parametric model. Community wrappers `fscad` and `EasyFusionAPI` cut boilerplate.
 - **No headless/CLI batch.** Fusion only runs with the GUI; scripts execute inside the running app (Shift+S → Scripts and Add-Ins). Plan around that.
 
+## Hard-won gotchas (verified building a real parametric enclosure in code)
+
+These are the failures that actually stop a build script; each one threw `RuntimeError: 3` or an `AttributeError` in practice.
+
+- **`startExtent` is a property, not a setter.** Use `extInput.startExtent = adsk.fusion.OffsetStartDefinition.create(ValueInput.createByString("29 mm"))`. There is no `setStartExtent(...)` method — calling it raises `AttributeError: ... has no attribute 'setStartExtent'`. (The distance side does use methods: `setDistanceExtent`, `setSymmetricExtent`, `setTwoSidesExtent`.)
+- **Root component name is read-only.** `root.name = '...'` throws `RuntimeError: 3 : root component name cannot be changed`. Rename the *document* (`doc.name`) or a sub-component instead, never the root.
+- **Cut order matters — never recess deeper than the wall before cutting the through-hole.** A front recess (e.g. 3 mm acrylic seat) cut into a 2.5 mm wall removes the wall entirely in that footprint; a later window cut started on that face then fails with `RuntimeError: 3 : No target body found to cut or intersect!` because its profile sits in empty space. Cut the **through-window first**, then the **shallow rebate** (keep rebate depth < wall thickness so a seating lip survives).
+- **Offset construction planes flip sign with the base plane's normal.** `xYConstructionPlane` normal is +Z, `yZConstructionPlane` is +X, but **`xZConstructionPlane` normal is -Y** (X×Z = -Y). So `setByOffset(xZ, +d)` moves toward -Y. Mismatched sign puts the sketch plane on the wrong face and the cut hits nothing. For side/bottom port slots it is far more robust to **skip offset planes entirely** and do a world-space tool cut: sketch the slot profile straddling the wall on a known plane (e.g. xY), then `startExtent = OffsetStartDefinition(...)` + `setDistanceExtent` to sweep the cut through the wall at the right depth. Deterministic regardless of face normals.
+- **A cut profile only needs to overlap *some* body to succeed.** Partly over a void is fine; entirely over a void is the "No target body" error. Use this: a slot profile can extend past the part edge into empty space and still cut cleanly.
+- **Verify a GUI-only script with a log file, not just a screenshot.** Have the script `open(path,'w')` then append a line after each feature and wrap the whole `run()` in `try/except` that writes `traceback.format_exc()`. Read that file back to see exactly which feature failed and why — the closed-loop equivalent of a render critique when you cannot orbit the viewport reliably. Each Run re-reads the script from disk, so edit-and-rerun needs no reload.
+- **Each `documents.add(...)` makes a new file.** Re-running a build script that calls it leaves a pile of `Untitled(n)` docs (Personal tier caps editable docs at 10). Either reuse `app.activeProduct` when it is an empty design, or close the failed-run docs (tab × → Don't Save) between attempts.
+- **Shell needs a planar face to open.** Pick the open-back face by scanning `body.faces` for the planar face with the extreme centroid along the open axis, add it to an `ObjectCollection`, then `shellFeatures.createInput(faces); sin.insideThickness = ...`.
+
 ## Driving Fusion from a coding agent (MCP)
 
 Like blender-mcp, community MCP servers bridge an AI client to a *running* Fusion via an add-in:
