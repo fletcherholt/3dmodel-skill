@@ -73,6 +73,18 @@ Like blender-mcp, community MCP servers bridge an AI client to a *running* Fusio
 - Others: `faust-machines/fusion360-mcp-server` (toolbar-level tools, works with Claude Code/Codex/Cursor), `Misterbra/fusion360-claude-ultimate` (84+ NL CAD tools), `rahayesj/ClaudeFusion360MCP` (ships skill files).
 - Setup mirrors blender-mcp: clone → copy the add-in into Fusion's AddIns → run it (Shift+S → Add-Ins) → register the MCP server (`claude mcp add`) → restart the session. Needs Fusion installed + open + Python 3.10+. Architecture is usually a JSON-file or socket poll between the MCP server and the add-in.
 
+### Wiring up ndoo/fusion360-mcp-bridge (verified end-to-end)
+
+This is the fast path — once running you drive Fusion entirely through `fusion_execute` (run any `adsk.*` Python, `print()` output comes back) and `fusion_screenshot` (clean viewport PNG, any named direction), with zero mouse/keyboard and no modal error dialogs (exceptions return as text). Setup that worked:
+
+1. `git clone https://github.com/ndoo/fusion360-mcp-bridge` then `bash scripts/quickstart-mac.sh` — it pip-installs `mcp`+`httpx` (prefers a `~/venv` if present, else `--user`; make a venv first to dodge PEP 668), generates `~/.fusion-mcp-secret` (mode 600), copies the add-in to `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/AddIns/FusionMCPBridge`, and merges an `mcpServers.fusion360` entry into `~/.claude/settings.json`.
+2. In Fusion: **Shift+S → Add-Ins tab → select FusionMCPBridge → toggle Run** (its manifest sets `runOnStartup:true` so it auto-starts thereafter). A dialog confirms "started on port 7654 (token auth enabled)".
+3. **Restart Claude Code** so the `fusion_execute`/`fusion_screenshot` MCP tools load.
+
+- **Before the restart you can already drive it via curl** (handy to verify, or to keep working in the same session): all requests need `-H "Authorization: Bearer $(cat ~/.fusion-mcp-secret)"`. `GET /health`; `POST /execute -d '{"script":"...python..."}'` — the body key is **`script`** (not `code`); `print()` output returns in `result`. `POST /screenshot -d '{"direction":"iso-top-right","width":1024,"height":768}'` (POST, not GET) returns base64 in `screenshot`. Directions: front/back/left/right/top/bottom/iso-*.
+- **Version bug to expect:** the add-in's screenshot handler calls `viewport.saveAsImageFileWithOptions(name,w,h,True)`, which on Fusion 2703.x raises "takes 2 positional arguments but 5 were given". Fix is `viewport.saveAsImageFile(name, w, h)` (the stable 3-arg method). Edit the add-in `.py`, then reload it without restarting Fusion by toggling its Run off/on in Shift+S (Fusion re-imports the module).
+- **Reloading add-in code = toggle Run off then on** in Shift+S; no Fusion restart needed.
+
 ## Sourcing real existing CAD (so it matches reality)
 
 Before modelling a real part, get the actual CAD: Fusion Insert → Insert McMaster-Carr Component (real STEP by part number), Insert Manufacturer Part, the SnapEDA Fusion app (PCB parts). Libraries: McMaster-Carr (free STEP for most parts), GrabCAD (millions of files), 3D ContentCentral, TraceParts, Digi-Key/SnapEDA. Import STEP/IGES via the Data Panel, then insert/derive. Recreate from references only when no usable model exists.
